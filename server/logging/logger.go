@@ -59,10 +59,9 @@ func WithGRPCContext(ctx context.Context) context.Context {
 	// Check for span_id in context first, then metadata
 	spanID, ok := ctx.Value(ctxKeySpanID).(string)
 	if !ok || spanID == "" {
-		spanID = getFromMetadata(ctx, "X-Span-ID")
-		if spanID == "" {
-			spanID = generateUUID()
-		}
+		// Always generate a new span_id for this service, regardless of metadata
+		// This ensures each service has its own span while maintaining trace correlation
+		spanID = generateUUID()
 	}
 
 	ctx = context.WithValue(ctx, ctxKeyTxID, txID)

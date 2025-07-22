@@ -125,8 +125,12 @@ func TestWithGRPCContextFromMetadata(t *testing.T) {
 	if txID != "metadata-tx-id" {
 		t.Errorf("Expected transaction ID from metadata 'metadata-tx-id', got %v", txID)
 	}
-	if spanID != "metadata-span-id" {
-		t.Errorf("Expected span ID from metadata 'metadata-span-id', got %v", spanID)
+	// Span ID should be newly generated, not from metadata (each service gets its own span)
+	if spanID == "metadata-span-id" {
+		t.Errorf("Expected new span ID to be generated, but got metadata span ID: %v", spanID)
+	}
+	if spanID == "" {
+		t.Error("Expected new span ID to be generated, but got empty string")
 	}
 }
 
