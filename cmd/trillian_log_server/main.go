@@ -38,13 +38,13 @@ import (
 	"github.com/google/trillian/quota/etcd/quotaapi"
 	"github.com/google/trillian/quota/etcd/quotapb"
 	"github.com/google/trillian/server"
+	"github.com/google/trillian/server/logging"
 	"github.com/google/trillian/storage"
 	"github.com/google/trillian/util"
 	"github.com/google/trillian/util/clock"
 	clientv3 "go.etcd.io/etcd/client/v3"
 	"google.golang.org/grpc"
 	"k8s.io/klog/v2"
-	"github.com/google/trillian/server/logging"
 
 	// Register supported storage and quota providers.
 	"github.com/google/trillian/cmd/internal/provider"
@@ -89,7 +89,7 @@ func main() {
 			klog.Exitf("Failed to load flags from config file %q: %s", *configFile, err)
 		}
 	}
-	klog.Info("Using custom local build of trillian-log-server")
+
 	klog.Info("**** Log Server Starting ****")
 
 	ctx, cancel := context.WithCancel(context.Background())
