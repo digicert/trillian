@@ -110,10 +110,14 @@ func LogWithContext(ctx context.Context, eventID string, msg string, fields map[
 
 	// Safely extract transaction_id and span_id
 	if txID := ctx.Value(ctxKeyTxID); txID != nil {
-		lf["transaction_id"] = txID
+		sanitizedTxID := strings.ReplaceAll(txID.(string), "\n", "")
+		sanitizedTxID = strings.ReplaceAll(sanitizedTxID, "\r", "")
+		lf["transaction_id"] = sanitizedTxID
 	}
 	if spanID := ctx.Value(ctxKeySpanID); spanID != nil {
-		lf["span_id"] = spanID
+		sanitizedSpanID := strings.ReplaceAll(spanID.(string), "\n", "")
+		sanitizedSpanID = strings.ReplaceAll(sanitizedSpanID, "\r", "")
+		lf["span_id"] = sanitizedSpanID
 	}
 
 	for k, v := range fields {
