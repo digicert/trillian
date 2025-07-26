@@ -29,27 +29,13 @@ func init() {
 	}
 }
 
-// isReasonableTransactionID performs basic validation to check if the transaction ID
-// contains only printable ASCII characters and is a reasonable length.
-func isReasonableTransactionID(id string) bool {
-	if len(id) == 0 || len(id) > 128 {
-		return false
-	}
-	for _, r := range id {
-		if r <= 31 || r == 127 {
-			return false
-		}
-	}
-	return true
-}
-
 func generateUUID() string {
 	return uuid.New().String()
 }
 
 func WithContext(r *http.Request) context.Context {
 	txID := r.Header.Get("X-Transaction-ID")
-	if txID == "" || !isReasonableTransactionID(txID) {
+	if txID == "" {
 		txID = generateUUID()
 	}
 
@@ -65,9 +51,9 @@ func WithGRPCContext(ctx context.Context) context.Context {
 	if !ok || txID == "" {
 		// If not, try to get it from gRPC metadata
 		txID = getFromMetadata(ctx, "X-Transaction-ID")
-	}
-	if txID == "" || !isReasonableTransactionID(txID) {
-		txID = generateUUID()
+		if txID == "" {
+			txID = generateUUID()
+		}
 	}
 
 	// Check for span_id in context first, then metadata
