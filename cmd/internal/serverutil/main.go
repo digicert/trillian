@@ -28,6 +28,7 @@ import (
 	"github.com/google/trillian/monitoring"
 	"github.com/google/trillian/server/admin"
 	"github.com/google/trillian/server/interceptor"
+	"github.com/google/trillian/server/logging"
 	"github.com/google/trillian/util/clock"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"go.etcd.io/etcd/client/v3/naming/endpoints"
@@ -138,8 +139,8 @@ func (m *Main) Run(ctx context.Context) error {
 	g, ctx := errgroup.WithContext(ctx)
 
 	if endpoint := m.HTTPEndpoint; endpoint != "" {
-		http.Handle("/metrics", promhttp.Handler())
-		http.HandleFunc("/healthz", m.healthz)
+		http.Handle("/metrics", logging.Middleware(promhttp.Handler()))
+		http.HandleFunc("/healthz", logging.MiddlewareFunc(m.healthz))
 
 		s := &http.Server{
 			Addr: endpoint,

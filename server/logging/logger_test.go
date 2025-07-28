@@ -3,7 +3,6 @@ package logging
 import (
 	"context"
 	"net/http/httptest"
-	"strings"
 	"testing"
 	"time"
 
@@ -14,27 +13,27 @@ import (
 	"google.golang.org/grpc/status"
 )
 
-func TestGenerateUUID(t *testing.T) {
-	// Test that generateUUID returns a non-empty string
-	uuid1 := generateUUID()
-	uuid2 := generateUUID()
+func TestGenerateTraceID(t *testing.T) {
+	// Test that generateTraceID returns a non-empty string
+	traceID1 := generateTraceID()
+	traceID2 := generateTraceID()
 
-	if uuid1 == "" {
-		t.Error("generateUUID returned empty string")
+	if traceID1 == "" {
+		t.Error("generateTraceID returned empty string")
 	}
 
-	if uuid2 == "" {
-		t.Error("generateUUID returned empty string")
+	if traceID2 == "" {
+		t.Error("generateTraceID returned empty string")
 	}
 
-	// Test that two UUIDs are different
-	if uuid1 == uuid2 {
-		t.Error("generateUUID returned the same UUID twice, should be unique")
+	// Test that two trace IDs are different
+	if traceID1 == traceID2 {
+		t.Error("generateTraceID returned the same trace ID twice, should be unique")
 	}
 
-	// Test that UUID has expected format (basic check for dashes)
-	if !strings.Contains(uuid1, "-") {
-		t.Error("generateUUID didn't return expected UUID format")
+	// Test that trace ID has expected format (32 char hex)
+	if len(traceID1) != 32 {
+		t.Error("generateTraceID didn't return expected 32 character hex format")
 	}
 }
 
@@ -42,13 +41,13 @@ func TestWithContext(t *testing.T) {
 	// Create a test HTTP request
 	req := httptest.NewRequest("GET", "/test", nil)
 
-	// Test case 1: Request without existing transaction ID
+	// Test case 1: Request without existing trace ID
 	ctx := WithContext(req)
 
-	// Check that transaction ID was added
-	txID := ctx.Value(ctxKeyTxID)
-	if txID == nil {
-		t.Error("WithContext didn't add transaction ID to context")
+	// Check that trace ID was added
+	traceID := ctx.Value(ctxKeyTraceID)
+	if traceID == nil {
+		t.Error("WithContext didn't add trace ID to context")
 	}
 
 	// Check that span ID was added
@@ -58,31 +57,35 @@ func TestWithContext(t *testing.T) {
 	}
 
 	// Check that both IDs are strings
-	if _, ok := txID.(string); !ok {
-		t.Error("Transaction ID is not a string")
+	if _, ok := traceID.(string); !ok {
+		t.Error("Trace ID is not a string")
 	}
 	if _, ok := spanID.(string); !ok {
 		t.Error("Span ID is not a string")
 	}
 }
 
-func TestWithContextExistingTransactionID(t *testing.T) {
-	// Create a test HTTP request with existing transaction ID
+func TestWithContextExistingTraceID(t *testing.T) {
+	// Note: WithContext for Trillian doesn't read headers - it always generates new IDs
+	// This is because Trillian's HTTP endpoints are just for metrics/health
 	req := httptest.NewRequest("GET", "/test", nil)
-	req.Header.Set("X-Transaction-ID", "existing-tx-id")
+	req.Header.Set("traceparent", "00-0123456789abcdef0123456789abcdef-0123456789abcdef-01")
 
 	ctx := WithContext(req)
 
-	// Check that the existing transaction ID was preserved
-	txID := ctx.Value(ctxKeyTxID)
-	if txID != "existing-tx-id" {
-		t.Errorf("Expected transaction ID 'existing-tx-id', got %v", txID)
+	// Check that new trace ID was generated (not from header)
+	traceID := ctx.Value(ctxKeyTraceID)
+	if traceID == nil {
+		t.Error("WithContext didn't generate trace ID")
+	}
+	if traceID == "0123456789abcdef0123456789abcdef" {
+		t.Error("WithContext should generate new trace ID, not use header")
 	}
 
-	// Check that a new span ID was still generated
+	// Check that new span ID was generated
 	spanID := ctx.Value(ctxKeySpanID)
 	if spanID == nil {
-		t.Error("WithContext didn't add span ID to context")
+		t.Error("WithContext didn't generate span ID")
 	}
 }
 
@@ -91,44 +94,43 @@ func TestWithGRPCContext(t *testing.T) {
 	ctx := context.Background()
 	newCtx := WithGRPCContext(ctx)
 
-	txID := newCtx.Value(ctxKeyTxID)
+	traceID := newCtx.Value(ctxKeyTraceID)
 	spanID := newCtx.Value(ctxKeySpanID)
 
-	if txID == nil || spanID == nil {
+	if traceID == nil || spanID == nil {
 		t.Error("WithGRPCContext didn't add IDs to empty context")
 	}
 
 	// Test case 2: Context with existing values
-	existingCtx := context.WithValue(context.Background(), ctxKeyTxID, "existing-tx")
+	existingCtx := context.WithValue(context.Background(), ctxKeyTraceID, "existing-trace")
 	existingCtx = context.WithValue(existingCtx, ctxKeySpanID, "existing-span")
 
 	newCtx2 := WithGRPCContext(existingCtx)
 
-	if newCtx2.Value(ctxKeyTxID) != "existing-tx" {
-		t.Error("WithGRPCContext didn't preserve existing transaction ID")
+	if newCtx2.Value(ctxKeyTraceID) != "existing-trace" {
+		t.Error("WithGRPCContext didn't preserve existing trace ID")
 	}
-	if newCtx2.Value(ctxKeySpanID) != "existing-span" {
-		t.Error("WithGRPCContext didn't preserve existing span ID")
+	// Note: span ID should NOT be preserved - each service generates its own
+	newSpanID := newCtx2.Value(ctxKeySpanID)
+	if newSpanID == "existing-span" {
+		t.Error("WithGRPCContext should generate new span ID, not preserve existing one")
 	}
 }
 
 func TestWithGRPCContextFromMetadata(t *testing.T) {
 	// Create context with gRPC metadata
-	md := metadata.Pairs("X-Transaction-ID", "metadata-tx-id", "X-Span-ID", "metadata-span-id")
+	md := metadata.Pairs("x-trace-id", "metadata-trace-id")
 	ctx := metadata.NewIncomingContext(context.Background(), md)
 
 	newCtx := WithGRPCContext(ctx)
 
-	txID := newCtx.Value(ctxKeyTxID)
+	traceID := newCtx.Value(ctxKeyTraceID)
 	spanID := newCtx.Value(ctxKeySpanID)
 
-	if txID != "metadata-tx-id" {
-		t.Errorf("Expected transaction ID from metadata 'metadata-tx-id', got %v", txID)
+	if traceID != "metadata-trace-id" {
+		t.Errorf("Expected trace ID from metadata 'metadata-trace-id', got %v", traceID)
 	}
 	// Span ID should be newly generated, not from metadata (each service gets its own span)
-	if spanID == "metadata-span-id" {
-		t.Errorf("Expected new span ID to be generated, but got metadata span ID: %v", spanID)
-	}
 	if spanID == "" {
 		t.Error("Expected new span ID to be generated, but got empty string")
 	}
@@ -139,7 +141,7 @@ func TestLogWithContext(t *testing.T) {
 	hook := test.NewLocal(log)
 
 	// Create context with IDs
-	ctx := context.WithValue(context.Background(), ctxKeyTxID, "test-tx-id")
+	ctx := context.WithValue(context.Background(), ctxKeyTraceID, "test-trace-id")
 	ctx = context.WithValue(ctx, ctxKeySpanID, "test-span-id")
 
 	// Test logging
@@ -173,8 +175,8 @@ func TestLogWithContext(t *testing.T) {
 	if entry.Data["event_id"] != "test-event" {
 		t.Errorf("Expected event_id 'test-event', got %v", entry.Data["event_id"])
 	}
-	if entry.Data["transaction_id"] != "test-tx-id" {
-		t.Errorf("Expected transaction_id 'test-tx-id', got %v", entry.Data["transaction_id"])
+	if entry.Data["trace_id"] != "test-trace-id" {
+		t.Errorf("Expected trace_id 'test-trace-id', got %v", entry.Data["trace_id"])
 	}
 	if entry.Data["span_id"] != "test-span-id" {
 		t.Errorf("Expected span_id 'test-span-id', got %v", entry.Data["span_id"])
@@ -189,7 +191,7 @@ func TestLogTiming(t *testing.T) {
 	hook := test.NewLocal(log)
 
 	// Create context with IDs
-	ctx := context.WithValue(context.Background(), ctxKeyTxID, "timing-tx-id")
+	ctx := context.WithValue(context.Background(), ctxKeyTraceID, "timing-trace-id")
 	ctx = context.WithValue(ctx, ctxKeySpanID, "timing-span-id")
 
 	// Create a test request
@@ -267,7 +269,7 @@ func (e *testError) Error() string {
 
 func TestPropagateToGRPC(t *testing.T) {
 	// Test with context containing IDs
-	ctx := context.WithValue(context.Background(), ctxKeyTxID, "propagate-tx-id")
+	ctx := context.WithValue(context.Background(), ctxKeyTraceID, "propagate-trace-id")
 	ctx = context.WithValue(ctx, ctxKeySpanID, "propagate-span-id")
 
 	newCtx := PropagateToGRPC(ctx)
@@ -278,16 +280,16 @@ func TestPropagateToGRPC(t *testing.T) {
 		t.Error("PropagateToGRPC didn't add metadata to context")
 	}
 
-	// Check that transaction ID was added to metadata
-	txIDs := md.Get("X-Transaction-ID")
-	if len(txIDs) != 1 || txIDs[0] != "propagate-tx-id" {
-		t.Errorf("Expected X-Transaction-ID 'propagate-tx-id', got %v", txIDs)
+	// Check that trace ID was added to metadata
+	traceIDs := md.Get("x-trace-id")
+	if len(traceIDs) != 1 || traceIDs[0] != "propagate-trace-id" {
+		t.Errorf("Expected x-trace-id 'propagate-trace-id', got %v", traceIDs)
 	}
 
-	// Check that span ID was added to metadata
-	spanIDs := md.Get("X-Span-ID")
-	if len(spanIDs) != 1 || spanIDs[0] != "propagate-span-id" {
-		t.Errorf("Expected X-Span-ID 'propagate-span-id', got %v", spanIDs)
+	// Check that span ID was NOT added to metadata (new design)
+	spanIDs := md.Get("x-span-id")
+	if len(spanIDs) != 0 {
+		t.Errorf("Expected no x-span-id in metadata, but got %v", spanIDs)
 	}
 
 	// Test with empty context (should return same context)

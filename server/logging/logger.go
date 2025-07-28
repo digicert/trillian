@@ -2,12 +2,13 @@ package logging
 
 import (
 	"context"
+	"crypto/rand"
+	"encoding/hex"
 	"fmt"
 	"net/http"
 	"strings"
 	"time"
 
-	"github.com/google/uuid"
 	"github.com/sirupsen/logrus"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/metadata"
@@ -17,8 +18,8 @@ import (
 type contextKey string
 
 const (
-	ctxKeyTxID   contextKey = "transaction_id"
-	ctxKeySpanID contextKey = "span_id"
+	ctxKeyTraceID contextKey = "trace_id"
+	ctxKeySpanID  contextKey = "span_id"
 )
 
 var log = logrus.New()
@@ -29,42 +30,62 @@ func init() {
 	}
 }
 
-func generateUUID() string {
-	return uuid.New().String()
+func generateTraceID() string {
+	// OpenTelemetry standard: 32 hex characters (128 bits)
+	bytes := make([]byte, 16)
+	rand.Read(bytes)
+	return hex.EncodeToString(bytes)
+}
+
+func generateSpanID() string {
+	// OpenTelemetry standard: 16 hex characters (64 bits)
+	bytes := make([]byte, 8)
+	rand.Read(bytes)
+	return hex.EncodeToString(bytes)
+}
+
+func normalizeToHex(id string) string {
+	// Remove hyphens from UUID format and convert to lowercase
+	normalized := strings.ReplaceAll(id, "-", "")
+	normalized = strings.ToLower(normalized)
+	
+	// Ensure it's 32 characters for trace ID (pad or truncate if needed)
+	if len(normalized) > 32 {
+		return normalized[:32]
+	}
+	if len(normalized) < 32 {
+		// Pad with zeros
+		return normalized + strings.Repeat("0", 32-len(normalized))
+	}
+	return normalized
 }
 
 func WithContext(r *http.Request) context.Context {
-	txID := r.Header.Get("X-Transaction-ID")
-	if txID == "" {
-		txID = generateUUID()
-	}
-
-	spanID := generateUUID()
-	ctx := context.WithValue(r.Context(), ctxKeyTxID, txID)
+	// For Trillian HTTP endpoints (metrics, health), generate new IDs
+	traceID := generateTraceID()
+	spanID := generateSpanID()
+	
+	ctx := context.WithValue(r.Context(), ctxKeyTraceID, traceID)
 	ctx = context.WithValue(ctx, ctxKeySpanID, spanID)
 	return ctx
 }
 
 func WithGRPCContext(ctx context.Context) context.Context {
-	// First check if there's already a transaction_id in the context (from HTTP)
-	txID, ok := ctx.Value(ctxKeyTxID).(string)
-	if !ok || txID == "" {
+	// First check if there's already a trace_id in the context (from HTTP)
+	traceID, ok := ctx.Value(ctxKeyTraceID).(string)
+	if !ok || traceID == "" {
 		// If not, try to get it from gRPC metadata
-		txID = getFromMetadata(ctx, "X-Transaction-ID")
-		if txID == "" {
-			txID = generateUUID()
+		traceID = getFromMetadata(ctx, "x-trace-id")
+		if traceID == "" {
+			traceID = generateTraceID()
 		}
 	}
 
-	// Check for span_id in context first, then metadata
-	spanID, ok := ctx.Value(ctxKeySpanID).(string)
-	if !ok || spanID == "" {
-		// Always generate a new span_id for this service, regardless of metadata
-		// This ensures each service has its own span while maintaining trace correlation
-		spanID = generateUUID()
-	}
+	// Always generate a new span_id for this service
+	// This ensures each service has its own span while maintaining trace correlation
+	spanID := generateSpanID()
 
-	ctx = context.WithValue(ctx, ctxKeyTxID, txID)
+	ctx = context.WithValue(ctx, ctxKeyTraceID, traceID)
 	ctx = context.WithValue(ctx, ctxKeySpanID, spanID)
 	return ctx
 }
@@ -81,23 +102,20 @@ func getFromMetadata(ctx context.Context, key string) string {
 	return ""
 }
 
-// PropagateToGRPC adds the transaction_id and span_id from the context to gRPC metadata
-// This should be called when making outgoing gRPC calls from HTTP handlers
+// PropagateToGRPC adds the trace_id from the context to gRPC metadata
+// This ensures trace correlation across service boundaries
+// Note: span_id is NOT propagated - each service generates its own span_id
 func PropagateToGRPC(ctx context.Context) context.Context {
-	txID := ctx.Value(ctxKeyTxID)
-	spanID := ctx.Value(ctxKeySpanID)
+	traceID := ctx.Value(ctxKeyTraceID)
 
-	if txID == nil && spanID == nil {
+	if traceID == nil {
 		return ctx
 	}
 
-	mdMap := make(map[string]string)
-	if txID != nil {
-		mdMap["X-Transaction-ID"] = txID.(string)
+	mdMap := map[string]string{
+		"x-trace-id": traceID.(string),
 	}
-	if spanID != nil {
-		mdMap["X-Span-ID"] = spanID.(string)
-	}
+	// Deliberately NOT propagating span_id - each service gets its own
 
 	md := metadata.New(mdMap)
 	return metadata.NewOutgoingContext(ctx, md)
@@ -108,11 +126,11 @@ func LogWithContext(ctx context.Context, eventID string, msg string, fields map[
 		"event_id": eventID,
 	}
 
-	// Safely extract transaction_id and span_id
-	if txID := ctx.Value(ctxKeyTxID); txID != nil {
-		sanitizedTxID := strings.ReplaceAll(txID.(string), "\n", "")
-		sanitizedTxID = strings.ReplaceAll(sanitizedTxID, "\r", "")
-		lf["transaction_id"] = sanitizedTxID
+	// Extract trace_id and span_id using standard OpenTelemetry field names
+	if traceID := ctx.Value(ctxKeyTraceID); traceID != nil {
+		sanitizedTraceID := strings.ReplaceAll(traceID.(string), "\n", "")
+		sanitizedTraceID = strings.ReplaceAll(sanitizedTraceID, "\r", "")
+		lf["trace_id"] = sanitizedTraceID
 	}
 	if spanID := ctx.Value(ctxKeySpanID); spanID != nil {
 		sanitizedSpanID := strings.ReplaceAll(spanID.(string), "\n", "")
