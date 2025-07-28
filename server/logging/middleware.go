@@ -31,3 +31,15 @@ func Middleware(next http.Handler) http.Handler {
 		LogTiming(ctx, r, rw.statusCode, elapsed)
 	})
 }
+
+// MiddlewareFunc wraps an http.HandlerFunc with logging middleware
+func MiddlewareFunc(next http.HandlerFunc) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		start := time.Now()
+		ctx := WithContext(r)
+		rw := &statusRecorder{ResponseWriter: w, statusCode: 200}
+		next.ServeHTTP(rw, r.WithContext(ctx))
+		elapsed := time.Since(start)
+		LogTiming(ctx, r, rw.statusCode, elapsed)
+	}
+}
