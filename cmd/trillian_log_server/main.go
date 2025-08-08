@@ -26,9 +26,11 @@ import (
 	"strings"
 	"time"
 
+	"github.com/digicert/ctutils/logging"
 	"github.com/google/trillian"
 	"github.com/google/trillian/cmd"
 	"github.com/google/trillian/cmd/internal/serverutil"
+	"github.com/google/trillian/config"
 	"github.com/google/trillian/extension"
 	"github.com/google/trillian/monitoring"
 	"github.com/google/trillian/monitoring/opencensus"
@@ -38,7 +40,6 @@ import (
 	"github.com/google/trillian/quota/etcd/quotaapi"
 	"github.com/google/trillian/quota/etcd/quotapb"
 	"github.com/google/trillian/server"
-	"github.com/google/trillian/server/logging"
 	"github.com/google/trillian/storage"
 	"github.com/google/trillian/util"
 	"github.com/google/trillian/util/clock"
@@ -92,13 +93,17 @@ func main() {
 
 	klog.Info("**** Log Server Starting ****")
 
+	// Set up logging adapter via config logic
+	// This can be extended to use env vars, flags, or config files
+	config.InitLogging()
+
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	go util.AwaitSignal(ctx, cancel)
 
 	var options []grpc.ServerOption
 	options = append(options, grpc.ChainUnaryInterceptor(
-		logging.UnaryServerInterceptor(),
+		logging.UnaryServerInterceptor(logging.GetLoggerAdapter()),
 	))
 	mf := prometheus.MetricFactory{}
 	monitoring.SetStartSpan(opencensus.StartSpan)

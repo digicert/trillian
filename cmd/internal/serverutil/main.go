@@ -23,12 +23,12 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/digicert/ctutils/logging"
 	"github.com/google/trillian"
 	"github.com/google/trillian/extension"
 	"github.com/google/trillian/monitoring"
 	"github.com/google/trillian/server/admin"
 	"github.com/google/trillian/server/interceptor"
-	"github.com/google/trillian/server/logging"
 	"github.com/google/trillian/util/clock"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"go.etcd.io/etcd/client/v3/naming/endpoints"
@@ -113,6 +113,11 @@ func (m *Main) healthz(rw http.ResponseWriter, req *http.Request) {
 // Run starts the configured server. Blocks until the server exits.
 func (m *Main) Run(ctx context.Context) error {
 	klog.CopyStandardLogTo("WARNING")
+
+	// Initialize OpenTelemetry for the Trillian server
+	if err := logging.InitOpenTelemetry("trillian-log-server"); err != nil {
+		return fmt.Errorf("failed to initialize OpenTelemetry: %v", err)
+	}
 
 	if m.HealthyDeadline == 0 {
 		m.HealthyDeadline = 5 * time.Second
@@ -241,6 +246,7 @@ func (m *Main) newGRPCServer() (*grpc.Server, error) {
 	serverOpts := []grpc.ServerOption{
 		grpc.UnaryInterceptor(grpc_middleware.ChainUnaryServer(
 			stats.Interceptor(),
+			logging.UnaryServerInterceptor(logging.GetLoggerAdapter()),
 			interceptor.ErrorWrapper,
 			ti.UnaryInterceptor,
 		)),
