@@ -5,25 +5,17 @@ WORKDIR /trillian
 ARG GOFLAGS=""
 ENV GOFLAGS=$GOFLAGS
 
-# Set up access to private modules using SSH
-RUN mkdir -p -m 0700 /root/.ssh && \
-    ssh-keyscan github.com > /root/.ssh/known_hosts && \
-    git config --global url."git@github.com:".insteadOf "https://github.com/"
-
-ENV GOPRIVATE=github.com/digicert/ctutils
-ENV GOSUMDB=off
-
 # Download dependencies first - this should be cacheable.
-COPY go.mod go.sum ./
-# Mount SSH agent socket during build and enable verbose output
-RUN --mount=type=ssh GODEBUG=httptrace=1 go mod download -x
-
-# Now add the local Trillian repo, which typically isn't cacheable.
 COPY . .
 
-# Build the server.
-RUN go install ./cmd/trillian_log_server
-# Run the licensing tool and save licenses, copyright notices, etc.
+# Download all dependencies
+RUN --mount=type=cache,target=/go/pkg/mod \
+    go mod download
+
+# Build the server with optimizations
+RUN --mount=type=cache,target=/root/.cache/go-build \
+    CGO_ENABLED=0 GOOS=linux go install -mod=mod -trimpath -ldflags="-s -w" ./cmd/trillian_log_server
+# Generate licenses
 RUN go run github.com/google/go-licenses/v2 save ./cmd/trillian_log_server --save_path /THIRD_PARTY_NOTICES
 
 # Make a minimal image.
