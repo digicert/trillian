@@ -50,6 +50,8 @@ require (
 	k8s.io/utils v0.0.0-20241104100929-3ea5e8cea738
 )
 
+require github.com/digicert/ctutils v0.1.2
+
 require go.opentelemetry.io/otel/exporters/stdout/stdouttrace v1.37.0 // indirect
 
 require (
@@ -87,7 +89,6 @@ require (
 	github.com/coreos/go-semver v0.3.1 // indirect
 	github.com/coreos/go-systemd/v22 v22.5.0 // indirect
 	github.com/davecgh/go-spew v1.1.2-0.20180830191138-d8f796af33cc // indirect
-	github.com/digicert/ctutils v0.1.0
 	github.com/distribution/reference v0.6.0 // indirect
 	github.com/docker/docker v27.5.1+incompatible // indirect
 	github.com/docker/go-connections v0.5.0 // indirect
