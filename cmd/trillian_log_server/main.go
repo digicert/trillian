@@ -26,7 +26,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/digicert/ctutils/logging"
 	"github.com/google/trillian"
 	"github.com/google/trillian/cmd"
 	"github.com/google/trillian/cmd/internal/serverutil"
@@ -102,9 +101,6 @@ func main() {
 	go util.AwaitSignal(ctx, cancel)
 
 	var options []grpc.ServerOption
-	options = append(options, grpc.ChainUnaryInterceptor(
-		logging.UnaryServerInterceptor(logging.GetLoggerAdapter()),
-	))
 	mf := prometheus.MetricFactory{}
 	monitoring.SetStartSpan(opencensus.StartSpan)
 

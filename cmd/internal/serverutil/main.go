@@ -246,7 +246,8 @@ func (m *Main) newGRPCServer() (*grpc.Server, error) {
 	serverOpts := []grpc.ServerOption{
 		grpc.UnaryInterceptor(grpc_middleware.ChainUnaryServer(
 			stats.Interceptor(),
-			logging.UnaryServerInterceptor(logging.GetLoggerAdapter()),
+			logging.CustomGRPCServerInterceptor(),                      // trace context propagation
+			logging.UnaryServerInterceptor(logging.GetLoggerAdapter()), // logging
 			interceptor.ErrorWrapper,
 			ti.UnaryInterceptor,
 		)),
