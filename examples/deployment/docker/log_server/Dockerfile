@@ -1,22 +1,13 @@
-# This Dockerfile is intended for CI/CD pipelines and demo/setup scripts.
-# It requires a GitHub token to access private repositories.
-# For local development, use Dockerfile.local instead which will use your git credentials.
-
 FROM golang:1.24.4-bookworm@sha256:2b85dcbf57258bceaa4599bc29efd92824b19b5f9a93b373b9df0856b8127cba as build
 
 WORKDIR /trillian
 
 ARG GOFLAGS=""
 ENV GOFLAGS=$GOFLAGS
-# For private module support (temporary until ctutils becomes public)
-ARG GITHUB_TOKEN
-ENV GOPRIVATE=github.com/digicert/ctutils
-# Configure git to use token authentication for private repos
-RUN git config --global url."https://${GITHUB_TOKEN}@github.com/".insteadOf "https://github.com/"
 
 # Download dependencies first - this should be cacheable.
 COPY go.mod go.sum ./
-RUN --mount=type=secret,id=github_token go mod download
+RUN go mod download
 
 # Now add the local Trillian repo, which typically isn't cacheable.
 COPY . .
