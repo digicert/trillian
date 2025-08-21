@@ -115,9 +115,7 @@ func (m *Main) Run(ctx context.Context) error {
 	klog.CopyStandardLogTo("WARNING")
 
 	// Initialize OpenTelemetry for the Trillian server
-	if err := logging.InitOpenTelemetry("trillian-log-server"); err != nil {
-		return fmt.Errorf("failed to initialize OpenTelemetry: %v", err)
-	}
+	//config.InitLogging()
 
 	if m.HealthyDeadline == 0 {
 		m.HealthyDeadline = 5 * time.Second

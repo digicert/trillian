@@ -7,8 +7,11 @@ import (
 
 // InitLogging sets up the logging adapter for the project.
 func InitLogging() {
+	// Initialize OpenTelemetry with config struct
+	logging.InitOpenTelemetry(logging.TelemetryConfigFromEnv())
+
 	// Example: select logger backend via config, env var, or flag
-	logConfig := logging.Config{Level: logging.InfoLevel, Format: "json"}
-	adapter := adapters.NewLogrusAdapter(logConfig)
+	logCfg := logging.Config{Format: "json"}
+	adapter := adapters.NewLogrusAdapter(logCfg)
 	logging.SetLoggerAdapter(adapter)
 }
