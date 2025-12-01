@@ -7,6 +7,14 @@ ENV GOFLAGS=$GOFLAGS
 
 # Download dependencies first - this should be cacheable.
 COPY go.mod go.sum ./
+ARG GITHUB_TOKEN
+ENV GITHUB_TOKEN=${GITHUB_TOKEN}
+ENV GOPRIVATE=github.com/digicert/ctutils
+ENV GONOSUMDB=github.com/digicert/ctutils
+RUN git config --global url."https://${GITHUB_TOKEN}:x-oauth-basic@github.com/".insteadOf "https://github.com/"
+
+# Download dependencies first - this should be cacheable.
+COPY go.mod go.sum ./
 RUN go mod download
 
 # Now add the local Trillian repo, which typically isn't cacheable.
