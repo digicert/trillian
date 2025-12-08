@@ -34,6 +34,7 @@ import (
 
 	"github.com/google/trillian/cmd"
 	"github.com/google/trillian/cmd/internal/serverutil"
+	"github.com/google/trillian/config"
 	"github.com/google/trillian/extension"
 	"github.com/google/trillian/log"
 	"github.com/google/trillian/monitoring"
@@ -99,6 +100,10 @@ func main() {
 
 	klog.CopyStandardLogTo("WARNING")
 	klog.Info("**** Log Signer Starting ****")
+
+	// Set up logging adapter via config logic
+	// This can be extended to use env vars, flags, or config files
+	config.InitLogging()
 
 	mf := prometheus.MetricFactory{}
 	monitoring.SetStartSpan(opencensus.StartSpan)

@@ -23,3 +23,6 @@
 /trillian_map_server
 default.etcd
 cockroach-data/
+server/.DS_Store
+.DS_Store
+cmd/trillian_log_server/trillian_log_server

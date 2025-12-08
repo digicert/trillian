@@ -29,6 +29,7 @@ import (
 	"github.com/google/trillian"
 	"github.com/google/trillian/cmd"
 	"github.com/google/trillian/cmd/internal/serverutil"
+	"github.com/google/trillian/config"
 	"github.com/google/trillian/extension"
 	"github.com/google/trillian/monitoring"
 	"github.com/google/trillian/monitoring/opencensus"
@@ -88,7 +89,12 @@ func main() {
 			klog.Exitf("Failed to load flags from config file %q: %s", *configFile, err)
 		}
 	}
+
 	klog.Info("**** Log Server Starting ****")
+
+	// Set up logging adapter via config logic
+	// This can be extended to use env vars, flags, or config files
+	config.InitLogging()
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()

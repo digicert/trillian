@@ -1,0 +1,46 @@
+FROM golang:1.24.4-bookworm as build
+
+WORKDIR /build
+
+# Accept GitHub token for private module access
+ARG GITHUB_TOKEN
+RUN git config --global url."https://${GITHUB_TOKEN}:x-oauth-basic@github.com/".insteadOf "https://github.com/"
+ENV GOPRIVATE=github.com/digicert/ctutils
+
+# Build arg to control localreplace
+ARG USE_LOCAL_CTUTILS=false
+
+# Use Go proxy for faster module downloads (can be overridden at build time)
+ENV GOPROXY=https://proxy.golang.org,direct
+
+# Always copy main repo and ctutils
+COPY trillian/. ./trillian
+COPY ctutils/. ./ctutils
+
+# Patch go.mod for localreplace if needed
+RUN if [ "$USE_LOCAL_CTUTILS" = "true" ]; then \
+      echo "Using local ctutils for development"; \
+      cd trillian && \
+      go mod edit -dropreplace=github.com/digicert/ctutils || true && \
+      go mod edit -replace=github.com/digicert/ctutils=../ctutils; \
+    else \
+      cd trillian && \
+      go mod edit -dropreplace=github.com/digicert/ctutils || true; \
+    fi
+
+WORKDIR /build/trillian
+RUN go mod tidy
+RUN --mount=type=cache,target=/go/pkg/mod go mod download
+
+RUN --mount=type=cache,target=/root/.cache/go-build \
+    CGO_ENABLED=0 GOOS=linux go install -trimpath -ldflags="-s -w" ./cmd/trillian_log_server
+
+RUN go mod download github.com/google/go-licenses/v2
+RUN go run github.com/google/go-licenses/v2 save ./cmd/trillian_log_server --save_path THIRD_PARTY_NOTICES
+
+FROM gcr.io/distroless/base-debian12
+
+COPY --from=build /go/bin/trillian_log_server /
+COPY --from=build /build/trillian/THIRD_PARTY_NOTICES /THIRD_PARTY_NOTICES
+
+ENTRYPOINT ["/trillian_log_server"]

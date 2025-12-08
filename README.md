@@ -18,6 +18,7 @@
  - [Using the Code](#using-the-code)
      - [MySQL Setup](#mysql-setup)
      - [Integration Tests](#integration-tests)
+     - [Observability](#observability)
  - [Working on the Code](#working-on-the-code)
      - [Rebuilding Generated Code](#rebuilding-generated-code)
      - [Updating Dependencies](#updating-dependencies)
@@ -155,6 +156,38 @@ This runs a multi-process test:
 
 You can find instructions on how to deploy Trillian in [deployment](/deployment)
 and [examples/deployment](/examples/deployment) directories.
+
+### Observability
+
+Trillian log server and signer support OpenTelemetry-compliant distributed
+tracing via the [ctutils](https://github.com/digicert/ctutils) shared logging
+library. This enables end-to-end request tracing from personality frontends
+(e.g., CTFE) through to the Trillian backend services.
+
+Configuration is via environment variables:
+
+| Variable | Description | Default |
+|----------|-------------|---------|
+| `OTEL_ENABLED` | Enable OpenTelemetry | `false` |
+| `OTEL_EXPORTER` | Exporter type (`otlp` or `stdout`) | `stdout` |
+| `OTEL_COLLECTOR_ENDPOINT` | OTLP collector URL | `localhost:4317` |
+| `OTEL_SERVICE_NAME` | Service name for traces | service-specific |
+| `OTEL_SAMPLE_RATIO` | Sampling ratio (0.0-1.0) | `1.0` |
+
+Example:
+
+```bash
+export OTEL_ENABLED=true
+export OTEL_EXPORTER=otlp
+export OTEL_COLLECTOR_ENDPOINT=http://otel-collector:4317
+export OTEL_SERVICE_NAME=trillian-log-server
+export OTEL_SAMPLE_RATIO=0.1
+```
+
+When enabled, Trillian services will:
+- Accept incoming trace context from gRPC requests
+- Propagate trace context to downstream services
+- Export traces to the configured OTLP collector
 
 ## Working on the Code
 
