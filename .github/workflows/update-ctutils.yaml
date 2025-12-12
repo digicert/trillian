@@ -26,7 +26,16 @@ jobs:
           GOPRIVATE: github.com/digicert/ctutils
           VERSION_INPUT: ${{ inputs.version || 'latest' }}
         run: |
-          git config --global url."https://${{ secrets.CTUTILS_PRIVATE_REPO_TOKEN }}:x-oauth-basic@github.com/".insteadOf "https://github.com/"
+          # Debug: check if secret exists (will be masked in logs)
+          if [ -z "${{ secrets.CTUTILS_PRIVATE_REPO_TOKEN }}" ]; then
+            echo "::error::CTUTILS_PRIVATE_REPO_TOKEN is empty!"
+            exit 1
+          else
+            echo "Token is present."
+          fi
+
+          # Switch to oauth2 syntax which is more robust for PATs
+          git config --global url."https://oauth2:${{ secrets.CTUTILS_PRIVATE_REPO_TOKEN }}@github.com/".insteadOf "https://github.com/"
           
           echo "Updating ctutils to $VERSION_INPUT..."
           go get github.com/digicert/ctutils@$VERSION_INPUT
