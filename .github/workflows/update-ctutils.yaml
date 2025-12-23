@@ -1,7 +1,7 @@
 name: Update ctutils dependencies
 
 on:
-  push: # Changed for testing
+
   workflow_dispatch:
     inputs:
       version:
@@ -25,8 +25,7 @@ jobs:
       - name: Update ctutils
         env:
           GOPRIVATE: github.com/digicert/ctutils
-          # VERSION_INPUT: ${{ inputs.version || 'latest' }}
-          VERSION_INPUT: v0.1.13-test # HARDCODED FOR TEST
+          VERSION_INPUT: ${{ inputs.version || 'latest' }}
         run: |
           # Debug: check if secret exists (will be masked in logs)
           if [ -z "${{ secrets.CTUTILS_PRIVATE_REPO_TOKEN }}" ]; then
@@ -51,7 +50,7 @@ jobs:
           committer: github-actions[bot] <41898282+github-actions[bot]@users.noreply.github.com>
           author: ${{ github.actor }} <${{ github.actor }}@users.noreply.github.com>
           branch: chore/update-ctutils
-          base: RA-8279_improve_application_visibility_timing_logs # PARANOIA: Target feature branch
+          base: master
           delete-branch: true
           title: "chore(deps): update ctutils"
           body: |
