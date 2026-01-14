@@ -7,14 +7,18 @@ ENV GOFLAGS=$GOFLAGS
 
 # We need to use the token for the private repo ctutils
 ARG GITHUB_TOKEN
-ENV GITHUB_TOKEN=${GITHUB_TOKEN}
 ENV GOPRIVATE=github.com/digicert/ctutils
 ENV GONOSUMDB=github.com/digicert/ctutils
-RUN git config --global url."https://${GITHUB_TOKEN}:x-oauth-basic@github.com/".insteadOf "https://github.com/"
 
 # Download dependencies first - this should be cacheable.
 COPY go.mod go.sum ./
-RUN go mod download
+# Download dependencies first - this should be cacheable.
+COPY go.mod go.sum ./
+# We use a configurable username to support both GitHub App tokens (x-access-token) and PATs (custom or default)
+ARG GITHUB_USER=x-access-token
+RUN git config --global url."https://${GITHUB_USER}:${GITHUB_TOKEN}@github.com/".insteadOf "https://github.com/" && \
+    go mod download && \
+    rm -f ~/.gitconfig
 
 # Now add the local Trillian repo, which typically isn't cacheable.
 COPY . .
