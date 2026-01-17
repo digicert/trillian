@@ -1,6 +1,8 @@
 package config
 
 import (
+	"os"
+
 	"github.com/digicert/ctutils/logging"
 	"github.com/digicert/ctutils/logging/adapters"
 )
@@ -13,7 +15,30 @@ func InitLogging() {
 	logging.InitOpenTelemetry(logging.TelemetryConfigFromEnv())
 
 	// Example: select logger backend via config, env var, or flag
-	logCfg := logging.Config{Format: "json"}
+	logFormat := os.Getenv("LOG_FORMAT")
+	if logFormat == "" {
+		logFormat = "text" // Default to text for human readability if not specified
+	}
+
+	logLevelStr := os.Getenv("LOG_LEVEL")
+	var logLevel logging.LogLevel
+	switch logLevelStr {
+	case "DEBUG":
+		logLevel = logging.DebugLevel
+	case "INFO":
+		logLevel = logging.InfoLevel
+	case "WARN":
+		logLevel = logging.WarnLevel
+	case "ERROR":
+		logLevel = logging.ErrorLevel
+	default:
+		logLevel = logging.InfoLevel
+	}
+
+	logCfg := logging.Config{
+		Format: logFormat,
+		Level:  logLevel,
+	}
 	adapter := adapters.NewLogrusAdapter(logCfg)
 	logging.SetLoggerAdapter(adapter)
 }
