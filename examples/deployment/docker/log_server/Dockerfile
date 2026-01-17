@@ -6,17 +6,17 @@ ARG GOFLAGS=""
 ENV GOFLAGS=$GOFLAGS
 
 # We need to use the token for the private repo ctutils
-ARG GITHUB_TOKEN
+# ARG GITHUB_TOKEN - Removed in favor of Docker secrets
 ENV GOPRIVATE=github.com/digicert/ctutils
 ENV GONOSUMDB=github.com/digicert/ctutils
 
 # Download dependencies first - this should be cacheable.
 COPY go.mod go.sum ./
-# Download dependencies first - this should be cacheable.
-COPY go.mod go.sum ./
 # We use a configurable username to support both GitHub App tokens (x-access-token) and PATs (custom or default)
 ARG GITHUB_USER=x-access-token
-RUN git config --global url."https://${GITHUB_USER}:${GITHUB_TOKEN}@github.com/".insteadOf "https://github.com/" && \
+# Use secrets mount to avoid leaking token in image history
+RUN --mount=type=secret,id=github_token \
+    git config --global url."https://${GITHUB_USER}:$(cat /run/secrets/github_token)@github.com/".insteadOf "https://github.com/" && \
     go mod download && \
     rm -f ~/.gitconfig
 
