@@ -5,7 +5,6 @@ go 1.23.0
 toolchain go1.23.4
 
 require (
-	// require github.com/digicert/ctutils v0.1.2 // commented out for localreplace: use local ctutils for development
 	bitbucket.org/creachadair/shell v0.0.8
 	cloud.google.com/go/spanner v1.77.0
 	contrib.go.opencensus.io/exporter/stackdriver v0.13.14
