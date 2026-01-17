@@ -6,6 +6,8 @@ import (
 )
 
 // InitLogging sets up the logging adapter for the project.
+// Note: This function is fail-safe. If OpenTelemetry initialization fails,
+// it logs an error and falls back to a no-op tracer provider to ensure the binary continues running.
 func InitLogging() {
 	// Initialize OpenTelemetry with config struct
 	logging.InitOpenTelemetry(logging.TelemetryConfigFromEnv())
