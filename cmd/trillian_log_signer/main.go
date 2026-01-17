@@ -102,7 +102,8 @@ func main() {
 	klog.Info("**** Log Signer Starting ****")
 
 	// Set up logging adapter via config logic
-	// This can be extended to use env vars, flags, or config files
+	// Note: config.InitLogging is fail-safe; it logs errors internally and falls back
+	// to no-op implementations if initialization fails, so no error handling is needed here.
 	config.InitLogging()
 
 	mf := prometheus.MetricFactory{}
