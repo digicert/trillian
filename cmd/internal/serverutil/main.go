@@ -114,9 +114,6 @@ func (m *Main) healthz(rw http.ResponseWriter, req *http.Request) {
 func (m *Main) Run(ctx context.Context) error {
 	klog.CopyStandardLogTo("WARNING")
 
-	// Initialize OpenTelemetry for the Trillian server
-	//config.InitLogging()
-
 	if m.HealthyDeadline == 0 {
 		m.HealthyDeadline = 5 * time.Second
 	}
@@ -143,6 +140,7 @@ func (m *Main) Run(ctx context.Context) error {
 
 	if endpoint := m.HTTPEndpoint; endpoint != "" {
 		// Wrap HTTP endpoints with logging middleware for consistent request logging and trace context propagation.
+		// Note: helper functions from ctutils do not return errors; they simply wrap the handlers.
 		http.Handle("/metrics", logging.Middleware(promhttp.Handler()))
 		http.HandleFunc("/healthz", logging.MiddlewareFunc(m.healthz))
 
