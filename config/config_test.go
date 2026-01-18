@@ -1,7 +1,6 @@
 package config
 
 import (
-	"os"
 	"testing"
 
 	"github.com/digicert/ctutils/logging"
@@ -10,7 +9,7 @@ import (
 func TestInitLogging(t *testing.T) {
 	// dedicated test cases can use t.Setenv in Go 1.17+
 	// For now using os.Setenv with defer cleanup for compatibility
-	
+
 	tests := []struct {
 		name      string
 		logFormat string
@@ -25,12 +24,10 @@ func TestInitLogging(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			if tt.logFormat != "" {
-				os.Setenv("LOG_FORMAT", tt.logFormat)
-				defer os.Unsetenv("LOG_FORMAT")
+				t.Setenv("LOG_FORMAT", tt.logFormat)
 			}
 			if tt.logLevel != "" {
-				os.Setenv("LOG_LEVEL", tt.logLevel)
-				defer os.Unsetenv("LOG_LEVEL")
+				t.Setenv("LOG_LEVEL", tt.logLevel)
 			}
 
 			// Ideally we would inspect the set logger, but since the global logger
