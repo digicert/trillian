@@ -48,7 +48,7 @@ require (
 	k8s.io/utils v0.0.0-20251002143259-bc988d571ff4
 )
 
-require github.com/digicert/ctutils v0.1.24-test
+require github.com/digicert/ctutils v0.1.25-test
 
 require (
 	cel.dev/expr v0.24.0 // indirect
