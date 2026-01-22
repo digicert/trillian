@@ -94,7 +94,8 @@ func main() {
 
 	// Set up logging adapter via config logic
 	// This can be extended to use env vars, flags, or config files
-	config.InitLogging()
+	shutdown := config.InitLogging()
+	defer shutdown()
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()

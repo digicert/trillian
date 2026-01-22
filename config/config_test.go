@@ -30,10 +30,12 @@ func TestInitLogging(t *testing.T) {
 				t.Setenv("LOG_LEVEL", tt.logLevel)
 			}
 
-			// Ideally we would inspect the set logger, but since the global logger
-			// is hidden/private in ctutils or hard to inspect without getters,
-			// we at least verify this doesn't panic.
-			InitLogging()
+			// Verify shutdown function is returned and works
+			shutdown := InitLogging()
+			if shutdown == nil {
+				t.Fatal("InitLogging() should return non-nil shutdown function")
+			}
+			defer shutdown() // Verify shutdown doesn't panic
 
 			// Check that a logger is set (not nil)
 			if logging.GetLogger() == nil {

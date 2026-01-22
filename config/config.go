@@ -10,11 +10,12 @@ import (
 // InitLogging sets up the logging adapter for the project.
 // Note: This function is fail-safe. If OpenTelemetry initialization fails,
 // it logs an error and falls back to a no-op tracer provider to ensure the binary continues running.
-func InitLogging() {
+// Returns a shutdown function that should be deferred in main().
+func InitLogging() func() {
 	// Initialize OpenTelemetry with config struct
-	logging.InitOpenTelemetry(logging.TelemetryConfigFromEnv())
+	shutdown := logging.InitOpenTelemetry(logging.TelemetryConfigFromEnv())
 
-	// Example: select logger backend via config, env var, or flag
+	// Read logger backend configuration from env vars
 	logFormat := os.Getenv("LOG_FORMAT")
 	if logFormat == "" {
 		logFormat = "text" // Default to text for human readability if not specified
@@ -41,4 +42,6 @@ func InitLogging() {
 	}
 	adapter := adapters.NewLogrusAdapter(logCfg)
 	logging.SetLoggerAdapter(adapter)
+
+	return shutdown
 }
