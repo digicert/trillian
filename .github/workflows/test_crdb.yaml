@@ -16,6 +16,9 @@ jobs:
       contents: read  # for actions/checkout to fetch code
       pull-requests: read  # for golangci/golangci-lint-action to fetch pull requests
     runs-on: ubuntu-latest
+    env:
+      GOPRIVATE: github.com/digicert/ctutils
+      GONOSUMDB: github.com/digicert/ctutils
     steps:
     - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
 
@@ -45,6 +48,9 @@ jobs:
 
   unit-test:
     runs-on: ubuntu-latest
+    env:
+      GOPRIVATE: github.com/digicert/ctutils
+      GONOSUMDB: github.com/digicert/ctutils
     steps:
     - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
 
@@ -72,6 +78,9 @@ jobs:
 
   integration:
     runs-on: ubuntu-22.04
+    env:
+      GOPRIVATE: github.com/digicert/ctutils
+      GONOSUMDB: github.com/digicert/ctutils
     steps:
     - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
 
