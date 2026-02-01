@@ -7,21 +7,21 @@ FROM golang:1.24.4-bookworm AS build
 WORKDIR /workspace
 
 ARG GOFLAGS=""
+ARG GOPROXY=""
 ENV GOFLAGS=$GOFLAGS
+ENV GOPROXY=$GOPROXY
 ENV GOPRIVATE=github.com/digicert/ctutils
 ENV GONOSUMDB=github.com/digicert/ctutils
 
 # Copy all workspace repos (ctutils, trillian)
+# go.mod has replace directive and cleaned go.sum added by build script
 COPY ctutils/ ctutils/
 COPY trillian/ trillian/
 
 WORKDIR /workspace/trillian
 
-# Download dependencies using local ctutils via replace directive
-RUN go mod download
-
-# Build the server
-RUN go install ./cmd/trillian_log_server
+# Build directly - go install will use local ctutils via replace directive
+RUN --mount=type=cache,target=/go/pkg/mod go install ./cmd/trillian_log_server
 
 # Run the licensing tool
 RUN go run github.com/google/go-licenses/v2 save ./cmd/trillian_log_server --save_path /THIRD_PARTY_NOTICES
