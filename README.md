@@ -160,9 +160,11 @@ and [examples/deployment](/examples/deployment) directories.
 ### Observability
 
 Trillian log server and signer support OpenTelemetry-compliant distributed
-tracing via the [ctutils](https://github.com/digicert/ctutils) shared logging
-library. This enables end-to-end request tracing from personality frontends
-(e.g., CTFE) through to the Trillian backend services.
+tracing and structured logging via the [ctutils](https://github.com/digicert/ctutils)
+shared library. This enables end-to-end request tracing and consistent log
+formatting across Trillian backend services.
+
+#### Distributed Tracing
 
 Configuration is via environment variables:
 
@@ -173,6 +175,8 @@ Configuration is via environment variables:
 | `OTEL_COLLECTOR_ENDPOINT` | OTLP collector URL | `localhost:4317` |
 | `OTEL_SERVICE_NAME` | Service name for traces | service-specific |
 | `OTEL_SAMPLE_RATIO` | Sampling ratio (0.0-1.0) | `1.0` |
+
+Values outside the 0.0-1.0 range for `OTEL_SAMPLE_RATIO` are validated and handled by the underlying [`ctutils`](https://github.com/digicert/ctutils) library; consult its documentation for details on how such values are treated.
 
 Example:
 
@@ -188,6 +192,15 @@ When enabled, Trillian services will:
 - Accept incoming trace context from gRPC requests
 - Propagate trace context to downstream services
 - Export traces to the configured OTLP collector
+
+#### Logging
+
+The following environment variables control the logging format and level:
+
+| Variable | Description | Default |
+|----------|-------------|---------|
+| `LOG_FORMAT` | Format for log output (`text` or `json`) | `text` |
+| `LOG_LEVEL` | Logging level (`DEBUG`, `INFO`, `WARN`, `ERROR`) | `INFO` |
 
 ## Working on the Code
 

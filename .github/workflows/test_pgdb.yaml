@@ -16,6 +16,10 @@ jobs:
       contents: read  # for actions/checkout to fetch code
       pull-requests: read  # for golangci/golangci-lint-action to fetch pull requests
     runs-on: ubuntu-latest
+    env:
+      GOPRIVATE: github.com/digicert/ctutils
+      GONOSUMDB: github.com/digicert/ctutils
+      GONOPROXY: github.com/digicert/ctutils
     steps:
     - uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
 
@@ -45,7 +49,10 @@ jobs:
 
   integration-and-unit-tests:
     runs-on: ubuntu-latest
-
+    env:
+      GOPRIVATE: github.com/digicert/ctutils
+      GONOSUMDB: github.com/digicert/ctutils
+      GONOPROXY: github.com/digicert/ctutils
     services:
       postgres:
         image: postgres

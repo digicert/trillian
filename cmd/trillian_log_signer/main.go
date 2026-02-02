@@ -103,9 +103,12 @@ func main() {
 	klog.Info("**** Log Signer Starting ****")
 
 	// Set up logging adapter via config logic
-	// Note: config.InitLogging is fail-safe; it logs errors internally and falls back
-	// to no-op implementations if initialization fails, so no error handling is needed here.
-	config.InitLogging()
+	// Note: config.InitLogging is fail-safe; if initialization fails (e.g., due to
+	// invalid configuration or unreachable collector), it logs warnings and falls back
+	// to no-op implementations to ensure the service remains operational. Observability
+	// degradation is preferred over service unavailability.
+	shutdown := config.InitLogging()
+	defer shutdown()
 
 	mf := prometheus.MetricFactory{}
 	monitoring.SetStartSpan(opencensus.StartSpan)
