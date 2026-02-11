@@ -139,10 +139,12 @@ func (m *Main) Run(ctx context.Context) error {
 	g, ctx := errgroup.WithContext(ctx)
 
 	if endpoint := m.HTTPEndpoint; endpoint != "" {
-		// Wrap HTTP endpoints with logging middleware for consistent request logging and trace context propagation.
-		// Note: helper functions from ctutils do not return errors; they simply wrap the handlers.
-		http.Handle("/metrics", logging.Middleware(promhttp.Handler()))
-		http.HandleFunc("/healthz", logging.MiddlewareFunc(m.healthz))
+		// Admin/operational endpoints (/healthz, /metrics) are intentionally NOT wrapped with
+		// logging middleware to avoid trace pollution from high-frequency polling by monitoring
+		// systems, load balancers, and Kubernetes probes. This is a best practice to reduce
+		// trace volume, costs, and noise in observability backends.
+		http.Handle("/metrics", promhttp.Handler())
+		http.HandleFunc("/healthz", m.healthz)
 
 		s := &http.Server{
 			Addr: endpoint,
