@@ -1,0 +1,35 @@
+# Dockerfile.local - For local development only
+# This file builds from the parent workspace directory to include local ctutils changes
+# Build from ~/workspace: docker build -f trillian/examples/deployment/docker/log_server/Dockerfile.local -t trillian-log-server:local .
+
+FROM golang:1.24.4-bookworm AS build
+
+WORKDIR /workspace
+
+ARG GOFLAGS=""
+ARG GOPROXY=""
+ENV GOFLAGS=$GOFLAGS
+ENV GOPROXY=$GOPROXY
+ENV GOPRIVATE=github.com/digicert/ctutils
+ENV GONOSUMDB=github.com/digicert/ctutils
+
+# Copy all workspace repos (ctutils, trillian)
+# go.mod has replace directive and cleaned go.sum added by build script
+COPY ctutils/ ctutils/
+COPY trillian/ trillian/
+
+WORKDIR /workspace/trillian
+
+# Build directly - go install will use local ctutils via replace directive
+RUN --mount=type=cache,target=/go/pkg/mod go install ./cmd/trillian_log_server
+
+# Run the licensing tool
+RUN go run github.com/google/go-licenses/v2 save ./cmd/trillian_log_server --save_path /THIRD_PARTY_NOTICES
+
+# Make a minimal image
+FROM gcr.io/distroless/base-debian12@sha256:201ef9125ff3f55fda8e0697eff0b3ce9078366503ef066653635a3ac3ed9c26
+
+COPY --from=build /go/bin/trillian_log_server /
+COPY --from=build /THIRD_PARTY_NOTICES /THIRD_PARTY_NOTICES
+
+ENTRYPOINT ["/trillian_log_server"]

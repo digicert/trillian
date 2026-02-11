@@ -34,6 +34,7 @@ import (
 
 	"github.com/google/trillian/cmd"
 	"github.com/google/trillian/cmd/internal/serverutil"
+	"github.com/google/trillian/config"
 	"github.com/google/trillian/extension"
 	"github.com/google/trillian/log"
 	"github.com/google/trillian/monitoring"
@@ -99,6 +100,14 @@ func main() {
 
 	klog.CopyStandardLogTo("WARNING")
 	klog.Info("**** Log Signer Starting ****")
+
+	// Set up logging adapter via config logic
+	// Note: config.InitLogging is fail-safe; if initialization fails (e.g., due to
+	// invalid configuration or unreachable collector), it logs warnings and falls back
+	// to no-op implementations to ensure the service remains operational. Observability
+	// degradation is preferred over service unavailability.
+	shutdown := config.InitLogging()
+	defer shutdown()
 
 	mf := prometheus.MetricFactory{}
 	monitoring.SetStartSpan(opencensus.StartSpan)

@@ -23,6 +23,7 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/digicert/ctutils/logging"
 	"github.com/google/trillian"
 	"github.com/google/trillian/extension"
 	"github.com/google/trillian/monitoring"
@@ -138,6 +139,10 @@ func (m *Main) Run(ctx context.Context) error {
 	g, ctx := errgroup.WithContext(ctx)
 
 	if endpoint := m.HTTPEndpoint; endpoint != "" {
+		// Admin/operational endpoints (/healthz, /metrics) are intentionally NOT wrapped with
+		// logging middleware to avoid trace pollution from high-frequency polling by monitoring
+		// systems, load balancers, and Kubernetes probes. This is a best practice to reduce
+		// trace volume, costs, and noise in observability backends.
 		http.Handle("/metrics", promhttp.Handler())
 		http.HandleFunc("/healthz", m.healthz)
 
@@ -234,16 +239,27 @@ func (m *Main) Run(ctx context.Context) error {
 
 // newGRPCServer starts a new Trillian gRPC server.
 func (m *Main) newGRPCServer() (*grpc.Server, error) {
+	// Set up the gRPC server with a chain of interceptors for:
+	// - Metrics collection (stats)
+	// - Trace context propagation (CustomGRPCServerInterceptor)
+	// - Structured logging (UnaryServerInterceptor)
+	// - Error wrapping (ErrorWrapper)
+	// - Quota and admin logic (ti.UnaryInterceptor)
+	// This ensures all endpoints are consistently wrapped for observability and maintainability.
 	stats := monitoring.NewRPCStatsInterceptor(clock.System, m.StatsPrefix, m.Registry.MetricFactory)
+
 	ti := interceptor.New(m.Registry.AdminStorage, m.Registry.QuotaManager, m.QuotaDryRun, m.Registry.MetricFactory)
 
 	serverOpts := []grpc.ServerOption{
 		grpc.UnaryInterceptor(grpc_middleware.ChainUnaryServer(
-			stats.Interceptor(),
-			interceptor.ErrorWrapper,
-			ti.UnaryInterceptor,
+			stats.Interceptor(),                                        // Metrics and monitoring
+			logging.CustomGRPCServerInterceptor(),                      // Trace context propagation for distributed tracing
+			logging.UnaryServerInterceptor(logging.GetLoggerAdapter()), // Structured logging for all requests
+			interceptor.ErrorWrapper,                                   // Consistent error handling
+			ti.UnaryInterceptor,                                        // Quota and admin logic
 		)),
 	}
+	// Allow additional server options to be injected (e.g., tracing, TLS)
 	serverOpts = append(serverOpts, m.ExtraOptions...)
 
 	// Let credentials.NewServerTLSFromFile handle the error case when only one of the flags is set.
